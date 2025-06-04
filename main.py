@@ -1,6 +1,6 @@
 import asyncio
 
-from crawler import iereies
+from crawler.crawler import iereies
 
 async def main():
     await iereies()
