@@ -3,7 +3,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import Column, DateTime, Integer, String
 
 # SQLite file-based DB for dev
-DATABASE_URL = "sqlite+aiosqlite:///database/music_events.db"
+DATABASE_URL = "sqlite+aiosqlite:///data/music_events.db"
 
 Base = declarative_base()
 
