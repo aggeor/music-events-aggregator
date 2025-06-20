@@ -196,3 +196,4 @@ cython_debug/
 
 # Project Specific files
 music_events.db
+servers.json

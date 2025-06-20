@@ -1,0 +1,17 @@
+# change all these values to proper ones
+# once done remove .example and keep as .json
+
+{
+  "Servers": {
+    "1": {
+      "Name": "super_secret_server_name",
+      "Group": "super_secret_group_name",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "super_secred_db_name",
+      "Username": "a_different_super_secret_user",
+      "Password": "a_different_super_secret_pwd",
+      "SSLMode": "prefer"
+    }
+  }
+}

@@ -1,14 +1,13 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import Column, DateTime, Integer, String
-
-# SQLite file-based DB for dev
-DATABASE_URL = "sqlite+aiosqlite:///data/music_events.db"
+import os
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 Base = declarative_base()
 
 class Event(Base):
-    __tablename__ = "events"
+    __tablename__ = "music_events"
 
     id = Column(Integer, primary_key=True)
     title = Column(String)

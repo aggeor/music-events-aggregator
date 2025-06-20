@@ -1,0 +1,54 @@
+
+services:
+  postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRESS_ACCESS_PORT}:${POSTGRESS_LISTEN_PORT}"
+    networks:
+      - net
+    env_file:
+      - .env
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_LISTEN_PORT: ${PGADMIN_LISTEN_PORT}
+    ports:
+      - "${PGADMIN_ACCESS_PORT}:${PGADMIN_LISTEN_PORT}"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+      - ./servers.json:/pgadmin4/servers.json
+    depends_on:
+      - postgres
+    networks:
+      - net
+    env_file:
+      - .env
+
+  crawler:
+    restart: no
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/postgres_python
+    depends_on:
+      - postgres
+    networks:
+      - net
+    env_file:
+      - .env
+
+networks:
+  net:
+
+volumes:
+  pgadmin-data:

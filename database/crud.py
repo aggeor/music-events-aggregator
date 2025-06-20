@@ -1,7 +1,13 @@
 from sqlalchemy.future import select
 from database.db import Event, AsyncSessionLocal, init_db
 
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+LOGGER = logging.getLogger(__name__)
+
 async def save_events_to_db(events: list[dict]):
+    LOGGER.info(f"Inserting events to database")
     await init_db()
 
     async with AsyncSessionLocal() as session:
@@ -22,3 +28,4 @@ async def save_events_to_db(events: list[dict]):
             session.add(event)
 
         await session.commit()
+        LOGGER.info(f"Completed inserting {len(events)} events")
