@@ -10,7 +10,7 @@ from crawl4ai import JsonCssExtractionStrategy
 
 CURRENT_YEAR = datetime.now().year
 
-async def iereies():
+async def crawl_iereies():
     # 1. Define a simple extraction schema
     schema = {
         "name": "Iereies",
@@ -22,7 +22,12 @@ async def iereies():
                 "type": "text"
             },
             {
-                "name": "date",
+                "name": "start_date",
+                "selector": "div.flex-eventsinfo-p",
+                "type": "text"
+            },
+            {
+                "name": "end_date",
                 "selector": "div.flex-eventsinfo-p",
                 "type": "text"
             },
@@ -86,14 +91,15 @@ async def iereies():
                 event["location"] = "" # Add empty location
 
             # Clean weekday (e.g., "SUN 27/07" → "27/07")
-            date_str = re.sub(r"^\w+\s+", "", event["date"]).strip()
+            date_str = re.sub(r"^\w+\s+", "", event["start_date"]).strip()
 
             # Combine with time
             datetime_str = f"{date_str} {time} {CURRENT_YEAR}"  # e.g., "27/07 17:30 2025"
             
             try:
                 parsed_date = datetime.strptime(datetime_str, "%d/%m %H:%M %Y")
-                event["date"] = parsed_date
+                event["start_date"] = parsed_date
+                event["end_date"] = parsed_date
             except ValueError:
                 print(f"Could not parse date: {datetime_str}")
                 continue  # Skip if invalid

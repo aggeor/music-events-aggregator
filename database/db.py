@@ -11,7 +11,8 @@ class Event(Base):
 
     id = Column(Integer, primary_key=True)
     title = Column(String)
-    date = Column(DateTime)
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
     location = Column(String)
     imageUrl = Column(String)
     detailsUrl = Column(String)
