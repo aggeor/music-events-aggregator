@@ -106,12 +106,4 @@ async def crawl_iereies():
             # Add detailsUrl
             if event.get("detailsUrl", "").startswith("/"):
                 event["detailsUrl"] = urljoin("https://iereiestisnychtas.com", event["detailsUrl"])
-        print(f"Extracted {len(data)} entries")
-        print(json.dumps(data, indent=2, default=serialize) if data else "No data found")
         return data
-
-
-def serialize(obj):
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    raise TypeError(f"Type {type(obj)} not serializable")

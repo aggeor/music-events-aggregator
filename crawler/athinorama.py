@@ -100,13 +100,4 @@ async def crawl_athinorama():
             event.pop("summary_raw", None)
 
             cleaned_data.append(event)
-
-        print(f"\n✅ Extracted {len(cleaned_data)} events")
-        print(json.dumps(cleaned_data, indent=2, default=serialize))
         return cleaned_data
-
-
-def serialize(obj):
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    raise TypeError(f"Type {type(obj)} not serializable")

@@ -1,4 +1,3 @@
-import json
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
@@ -77,11 +76,4 @@ async def crawl_clubber():
                 "imageUrl": img["src"] if img else None,
                 "detailsUrl": None,
             })
-    print(f"\n✅ Extracted {len(events)} total entries")
-    print(json.dumps(events, indent=2, default=serialize))
     return events
-
-def serialize(obj):
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    raise TypeError(f"Type {type(obj)} not serializable")

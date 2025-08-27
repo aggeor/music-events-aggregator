@@ -141,13 +141,4 @@ async def crawl_aptaliko():
                 break
 
             page += 1
-
-    print(f"\n✅ Extracted {len(all_data)} total entries")
-    print(json.dumps(all_data, indent=2, default=serialize))
     return all_data
-
-
-def serialize(obj):
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    raise TypeError(f"Type {type(obj)} not serializable")
