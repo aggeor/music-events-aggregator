@@ -40,6 +40,8 @@ services:
       dockerfile: Dockerfile
     volumes:
       - .:/postgres_python
+    stdin_open: true
+    tty: true
     depends_on:
       - postgres
     networks:
