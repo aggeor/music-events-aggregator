@@ -9,6 +9,10 @@ from crawl4ai import JsonCssExtractionStrategy
 
 from typing import Optional
 
+from utils.helper import LOGGER
+
+BASE_URL = "https://aptaliko.gr/search?contentType=EVENTS&groupPage=1&eventPage="
+
 def parse_event_date(date_str: str) -> dict:
     """
     Parse a date string from aptaliko.gr and return a dict with 'date' or 'start_date'/'end_date'.
@@ -51,7 +55,8 @@ def parse_event_date(date_str: str) -> dict:
 
 
 async def crawl_aptaliko():
-    base_url = "https://aptaliko.gr/search?contentType=EVENTS&groupPage=1&eventPage="
+    LOGGER.info(f"Crawling aptaliko.gr")
+    LOGGER.info(f"URL: "+BASE_URL)
     page = 1
     all_data = []
 
@@ -78,7 +83,7 @@ async def crawl_aptaliko():
 
     async with AsyncWebCrawler(verbose=True) as crawler:
         while True:
-            url = f"{base_url}{page}"
+            url = f"{BASE_URL}{page}"
             print(f"Fetching page {page}: {url}")
 
             # Fetch event data
@@ -141,4 +146,5 @@ async def crawl_aptaliko():
                 break
 
             page += 1
+    LOGGER.info(f"✅ Completed crawling aptaliko.gr")
     return all_data

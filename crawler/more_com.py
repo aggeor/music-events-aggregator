@@ -3,6 +3,10 @@ from datetime import datetime, timedelta
 from urllib.parse import urljoin
 from playwright.async_api import async_playwright
 
+from utils.helper import LOGGER
+
+BASE_URL = "https://www.more.com/gr-el/tickets/music/"
+
 CURRENT_YEAR = datetime.now().year
 
 GREEK_MONTHS = {
@@ -87,6 +91,8 @@ def parse_greek_date(date_text: str):
     return None, None
 
 async def crawl_more_com():
+    LOGGER.info(f"Crawling more.com")
+    LOGGER.info(f"URL: "+BASE_URL)
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=False,
@@ -94,7 +100,7 @@ async def crawl_more_com():
         )
         page = await browser.new_page()
 
-        await page.goto("https://www.more.com/gr-el/tickets/music/", wait_until="domcontentloaded")
+        await page.goto(BASE_URL, wait_until="domcontentloaded")
 
         # Accept cookies automatically
         try:
@@ -145,4 +151,6 @@ async def crawl_more_com():
             })
 
         await browser.close()
+
+        LOGGER.info(f"✅ Completed crawling more.com")
         return results

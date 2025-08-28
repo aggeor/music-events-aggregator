@@ -7,10 +7,15 @@ import json
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
 from crawl4ai import JsonCssExtractionStrategy
 
+from utils.helper import LOGGER
+
+BASE_URL="https://iereiestisnychtas.com/musicevents"
 
 CURRENT_YEAR = datetime.now().year
 
 async def crawl_iereies():
+    LOGGER.info(f"Crawling iereiestisnychtas.com")
+    LOGGER.info(f"URL: "+BASE_URL)
     # 1. Define a simple extraction schema
     schema = {
         "name": "Iereies",
@@ -65,7 +70,7 @@ async def crawl_iereies():
     async with AsyncWebCrawler(verbose=True) as crawler:
         # 4. Run the crawl and extraction
         result = await crawler.arun(
-            url="https://iereiestisnychtas.com/musicevents",
+            url=BASE_URL,
             config=config
         )
 
@@ -106,4 +111,6 @@ async def crawl_iereies():
             # Add detailsUrl
             if event.get("detailsUrl", "").startswith("/"):
                 event["detailsUrl"] = urljoin("https://iereiestisnychtas.com", event["detailsUrl"])
+        
+        LOGGER.info(f"✅ Completed crawling iereiestisnychtas.com")
         return data

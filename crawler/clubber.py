@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import re
 
+from utils.helper import LOGGER
+
 BASE_URL = "https://www.clubber.gr/events"
 
 def parse_event_time(date_str, time_str):
@@ -30,6 +32,8 @@ def adjust_end_date(start_dt, end_dt):
     return end_dt
 
 async def crawl_clubber():
+    LOGGER.info(f"Crawling clubber.gr")
+    LOGGER.info(f"URL: "+BASE_URL)
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                       "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -76,4 +80,6 @@ async def crawl_clubber():
                 "imageUrl": img["src"] if img else None,
                 "detailsUrl": None,
             })
+    
+    LOGGER.info(f"✅ Completed crawling clubber.gr")
     return events

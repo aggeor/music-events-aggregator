@@ -7,7 +7,11 @@ from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
 from crawl4ai import JsonCssExtractionStrategy
 from bs4 import BeautifulSoup
 
+from utils.helper import LOGGER
+
 CURRENT_YEAR = datetime.now().year
+
+BASE_URL = "https://www.athinorama.gr/music/guide"
 
 # Greek time mapping
 def convert_greek_time_to_24h(time_str):
@@ -27,6 +31,8 @@ def convert_greek_time_to_24h(time_str):
     return f"{hour:02}:{minute:02}"
 
 async def crawl_athinorama():
+    LOGGER.info(f"Crawling athinorama.gr")
+    LOGGER.info(f"URL: "+BASE_URL)
     schema = {
         "name": "Athinorama",
         "baseSelector": "div.guide-list div.item",
@@ -47,7 +53,7 @@ async def crawl_athinorama():
 
     async with AsyncWebCrawler(verbose=True) as crawler:
         result = await crawler.arun(
-            url="https://www.athinorama.gr/music/guide",
+            url=BASE_URL,
             config=config
         )
 
@@ -100,4 +106,6 @@ async def crawl_athinorama():
             event.pop("summary_raw", None)
 
             cleaned_data.append(event)
+        
+        LOGGER.info(f"✅ Completed crawling athinorama.gr")
         return cleaned_data
