@@ -102,6 +102,9 @@ async def crawl_athinorama():
             if event.get("detailsUrl", "").startswith("/"):
                 event["detailsUrl"] = urljoin("https://www.athinorama.gr/", event["detailsUrl"])
 
+            event["sourceName"] = "athinorama.gr"
+            event["sourceUrl"] = BASE_URL
+
             # Remove raw HTML content to keep output clean
             event.pop("summary_raw", None)
 

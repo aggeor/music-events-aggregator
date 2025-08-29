@@ -22,6 +22,8 @@ class EventSchema(BaseModel):
     location: str
     imageUrl: str | None
     detailsUrl: str | None
+    sourceName: str
+    sourceUrl: str
 
     class Config:
         orm_mode = True  # allows Pydantic to work directly with ORM objects

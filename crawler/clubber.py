@@ -79,6 +79,8 @@ async def crawl_clubber():
                 "location": location,
                 "imageUrl": img["src"] if img else None,
                 "detailsUrl": None,
+                "sourceName": "clubber.gr",
+                "sourceUrl" : BASE_URL
             })
     
     LOGGER.info(f"✅ Completed crawling clubber.gr")

@@ -16,6 +16,8 @@ class Event(Base):
     location = Column(String)
     imageUrl = Column(String)
     detailsUrl = Column(String)
+    sourceName = Column(String)
+    sourceUrl = Column(String)
 
 # Create async engine and session factory
 engine = create_async_engine(DATABASE_URL, echo=True)

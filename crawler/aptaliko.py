@@ -115,6 +115,8 @@ async def crawl_aptaliko():
                 # Remove the original 'date' field
                 if "date" in event:
                     del event["date"]
+                event["sourceName"] = "aptaliko.gr"
+                event["sourceUrl"] = BASE_URL
 
             all_data.extend(page_data)
 

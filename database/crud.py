@@ -24,7 +24,9 @@ async def save_events_to_db(events: list[dict]):
                 end_date=e["end_date"],
                 location=e["location"],
                 imageUrl=e["imageUrl"],
-                detailsUrl=e["detailsUrl"]
+                detailsUrl=e["detailsUrl"],
+                sourceName=e["sourceName"],
+                sourceUrl=e["sourceUrl"]
             )
             session.add(event)
 

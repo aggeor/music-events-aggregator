@@ -111,6 +111,9 @@ async def crawl_iereies():
             # Add detailsUrl
             if event.get("detailsUrl", "").startswith("/"):
                 event["detailsUrl"] = urljoin("https://iereiestisnychtas.com", event["detailsUrl"])
+            
+            event["sourceName"] = "iereiestisnychtas.com"
+            event["sourceUrl"] = BASE_URL
         
         LOGGER.info(f"✅ Completed crawling iereiestisnychtas.com")
         return data

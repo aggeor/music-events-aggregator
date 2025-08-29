@@ -147,7 +147,9 @@ async def crawl_more_com():
                 "detailsUrl": details_url,
                 "imageUrl": image_url,
                 "start_date": start_date,
-                "end_date": end_date
+                "end_date": end_date,
+                "sourceName": "more.com",
+                "sourceUrl" : BASE_URL
             })
 
         await browser.close()
