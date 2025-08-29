@@ -48,6 +48,19 @@ services:
       - net
     env_file:
       - .env
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    networks:
+      - net
+    env_file:
+      - .env
 
 networks:
   net:
