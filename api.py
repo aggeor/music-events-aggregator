@@ -5,8 +5,24 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from database.db import AsyncSessionLocal, Event as EventDB 
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+# Allow requests from your frontend (Next.js runs on port 3000)
+origins = [
+    "http://localhost:3000",   # Next.js dev server
+    "http://127.0.0.1:3000",
+    # add production domain later, e.g. "https://myfrontend.com"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,       # Which origins can talk to API
+    allow_credentials=True,
+    allow_methods=["*"],         # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],         # Allow all headers
+)
 
 # Get DB session
 async def get_db():
