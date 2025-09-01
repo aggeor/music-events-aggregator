@@ -52,12 +52,18 @@ def parse_greek_date(date_text: str):
     date_text = date_text.replace("\xa0", " ").strip()
     parts = date_text.split()
     
-    if len(parts) == 2:  # single-day format: "18 Σεπτεμβριου"
+    if len(parts) == 2 and "/" not in parts[1]:  # single-day format: "18 Σεπτεμβριου"
         day = int(parts[0])
         month = GREEK_MONTHS.get(parts[1])
         if month:
             dt = datetime(CURRENT_YEAR, month, day)
             return dt, dt
+    elif len(parts) == 2 and "/" in parts[1]:
+        date = parts[1].split("/")
+        day = int(date[0])
+        month = int(date[1])
+        dt = datetime(CURRENT_YEAR, month, day)
+        return dt, dt
     elif len(parts) == 4 and parts[1] in ["-", "–"]:  # range format: "5 - 6 Σεπτεμβριου"
         start_day = int(parts[0])
         end_day = int(parts[2])
