@@ -1,0 +1,29 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - main  # change if you use another branch
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push API image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/events-api:latest -f Dockerfile.api .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/events-api:latest
+
+      - name: Build and push Crawler image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/events-crawler:latest -f Dockerfile .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/events-crawler:latest
