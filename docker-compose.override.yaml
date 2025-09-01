@@ -1,0 +1,18 @@
+services:
+  postgres:
+    env_file:
+      - .env
+
+  pgadmin:
+    env_file:
+      - .env
+    volumes:
+      - ./servers.json:/pgadmin4/servers.json
+
+  crawler:
+    env_file:
+      - .env
+
+  api:
+    env_file:
+      - .env
