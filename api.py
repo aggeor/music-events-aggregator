@@ -13,6 +13,7 @@ app = FastAPI()
 origins = [
     "http://localhost:3000",   # Next.js dev server
     "http://127.0.0.1:3000",
+    "https://events.maenox.com"
     # add production domain later, e.g. "https://myfrontend.com"
 ]
 
