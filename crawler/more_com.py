@@ -21,19 +21,31 @@ ENGLISH_MONTHS = {
     "SEPTEMBER": 9, "OCTOBER": 10, "NOVEMBER": 11, "DECEMBER": 12
 }
 
+MAX_RETRIES = 3
 async def scroll_until_footer(page, pause=0.8):
     footer_selector = "div.footer__copyright"
+    scroll_count = 0
     while True:
-        footer_visible = await page.evaluate(f"""
-            () => {{
-                const el = document.querySelector("{footer_selector}");
-                if (!el) return false;
-                const rect = el.getBoundingClientRect();
-                return rect.top <= window.innerHeight;
-            }}
-        """)
+        try:
+            footer_visible = await page.evaluate(f"""
+                () => {{
+                    const el = document.querySelector("{footer_selector}");
+                    if (!el) return false;
+                    const rect = el.getBoundingClientRect();
+                    return rect.top <= window.innerHeight;
+                }}
+            """)
+        except Exception as e:
+            LOGGER.warning(f"scroll_until_footer evaluate failed: {e}, retrying...")
+            await asyncio.sleep(1)
+            continue
+
         if footer_visible:
+            LOGGER.info(f"✅ Footer reached after {scroll_count} scrolls")
             break
+
+        scroll_count += 1
+        LOGGER.info(f"Scrolling attempt {scroll_count}... still not at footer")
         await page.mouse.wheel(0, 400)
         await asyncio.sleep(pause)
 
@@ -108,10 +120,9 @@ def parse_greek_date(date_text: str):
     # Fallback
     return start_dt, end_dt
 
+async def crawl_more_com_once():
+    LOGGER.info("🚀 Starting crawl for more.com")
 
-async def crawl_more_com():
-    LOGGER.info(f"Crawling more.com")
-    LOGGER.info(f"URL: "+BASE_URL)
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=False,
@@ -119,59 +130,76 @@ async def crawl_more_com():
         )
         page = await browser.new_page()
 
-        await page.goto(BASE_URL, wait_until="domcontentloaded")
+        LOGGER.info(f"Navigating to {BASE_URL}")
+        await page.goto(BASE_URL, wait_until="domcontentloaded",timeout=60000)
 
         # Accept cookies automatically
         try:
+            LOGGER.info("Checking for cookie popup...")
             cookie_button = await page.wait_for_selector("a.cc-btn.cc-btn--accept", timeout=10000)
             if cookie_button:
                 await cookie_button.click()
+                LOGGER.info("✅ Accepted cookies")
                 await asyncio.sleep(1)
-        except:
-            pass
+        except Exception:
+            LOGGER.info("No cookie popup found")
 
-        # Scroll until footer
-        await scroll_until_footer(page, pause=0.8)
+        LOGGER.info("Scrolling until footer...")
+        await scroll_until_footer(page)
 
-        await page.wait_for_selector("aside.playimage img[src*='/getattachment/']", timeout=10000)
-
+        LOGGER.info("Extracting event elements...")
         events = await page.query_selector_all("a.play-template__main")
+        LOGGER.info(f"Found {len(events)} events")
+
         results = []
+        for idx, event_el in enumerate(events, start=1):
+            try:
+                LOGGER.info(f"Parsing event {idx}/{len(events)}...")
+                title_el = await event_el.query_selector("h3.playinfo__title")
+                title = await title_el.inner_text() if title_el else None
 
-        # Get data
-        for event_el in events:
-            title_el = await event_el.query_selector("h3.playinfo__title")
-            title = await title_el.inner_text() if title_el else None
+                loc_el = await event_el.query_selector("div.playinfo__venue")
+                location = await loc_el.inner_text() if loc_el else None
 
-            loc_el = await event_el.query_selector("div.playinfo__venue")
-            location = await loc_el.inner_text() if loc_el else None
+                details_url = await event_el.get_attribute("href")
+                img_el = await event_el.query_selector("aside.playimage img")
+                image_url = await img_el.get_attribute("src") if img_el else None
 
-            details_url = await event_el.get_attribute("href")
+                date_el = await event_el.query_selector("time.playinfo__date")
+                date_text = await date_el.inner_text() if date_el else ""
 
-            img_el = await event_el.query_selector("aside.playimage img")
-            image_url = await img_el.get_attribute("src") if img_el else None
+                start_date, end_date = parse_greek_date(date_text)
 
-            date_el = await event_el.query_selector("time.playinfo__date")
-            date_text = await date_el.inner_text() if date_el else ""
-            start_date, end_date = parse_greek_date(date_text)
+                if details_url and details_url.startswith("/"):
+                    details_url = urljoin("https://www.more.com", details_url)
+                if image_url and image_url.startswith("/"):
+                    image_url = urljoin("https://www.more.com", image_url)
 
-            if details_url and details_url.startswith("/"):
-                details_url = urljoin("https://www.more.com", details_url)
-            if image_url and image_url.startswith("/"):
-                image_url = urljoin("https://www.more.com", image_url)
+                results.append({
+                    "title": title,
+                    "location": location,
+                    "detailsUrl": details_url,
+                    "imageUrl": image_url,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "sourceName": "more.com",
+                    "sourceUrl": BASE_URL
+                })
+            except Exception as e:
+                LOGGER.warning(f"⚠️ Failed to parse event {idx}: {e}")
+                continue
 
-            results.append({
-                "title": title,
-                "location": location,
-                "detailsUrl": details_url,
-                "imageUrl": image_url,
-                "start_date": start_date,
-                "end_date": end_date,
-                "sourceName": "more.com",
-                "sourceUrl" : BASE_URL
-            })
-
+        LOGGER.info(f"✅ Completed crawling more.com ({len(results)} events parsed)")
         await browser.close()
-
-        LOGGER.info(f"✅ Completed crawling more.com")
         return results
+    
+
+async def crawl_more_com():
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            return await crawl_more_com_once()
+        except Exception as e:
+            LOGGER.error(f"Attempt {attempt}/{MAX_RETRIES} failed: {e}")
+            if attempt == MAX_RETRIES:
+                raise
+            await asyncio.sleep(3)
