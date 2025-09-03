@@ -48,53 +48,66 @@ def find_greek_month(substring: str):
     return None
 
 def parse_greek_date(date_text: str):
-    """Parse a date string like '5 - 6 Σεπτεμβριου' or '18 Σεπτεμβριου' into start and end datetime objects."""
+    """Parse a Greek/English date string into start and end datetime objects with year rollover."""
     date_text = date_text.replace("\xa0", " ").strip()
     parts = date_text.split()
-    
-    if len(parts) == 2 and "/" not in parts[1]:  # single-day format: "18 Σεπτεμβριου"
-        day = int(parts[0])
-        month = GREEK_MONTHS.get(parts[1])
-        if month:
-            dt = datetime(CURRENT_YEAR, month, day)
-            return dt, dt
-    elif len(parts) == 2 and "/" in parts[1]:
-        date = parts[1].split("/")
-        day = int(date[0])
-        month = int(date[1])
-        dt = datetime(CURRENT_YEAR, month, day)
-        return dt, dt
-    elif len(parts) == 4 and parts[1] in ["-", "–"]:  # range format: "5 - 6 Σεπτεμβριου"
-        start_day = int(parts[0])
-        end_day = int(parts[2])
-        month = GREEK_MONTHS.get(parts[3])
-        if month:
-            start_dt = datetime(CURRENT_YEAR, month, start_day)
-            end_dt = datetime(CURRENT_YEAR, month, end_day)
-            return start_dt, end_dt
 
-    # Special case for Rock Hard Festival Greece
-    elif len(parts) == 4 and parts[1] in ["&"]:  # range format: "12 & 13 September"
+    now = datetime.now()
+    start_dt = end_dt = None
+
+    # Single day Greek format: "18 Σεπτεμβριου"
+    if len(parts) == 2 and "/" not in parts[1]:
+        day = int(parts[0])
+        month = GREEK_MONTHS.get(parts[1].upper())
+        if month:
+            year = now.year
+            if month < now.month:
+                year += 1
+            start_dt = end_dt = datetime(year, month, day)
+
+    # Range Greek format: "5 - 6 Σεπτεμβριου"
+    elif len(parts) == 4 and parts[1] in ["-", "–"]:
         start_day = int(parts[0])
         end_day = int(parts[2])
-        month = ENGLISH_MONTHS.get(parts[3])
+        month = GREEK_MONTHS.get(parts[3].upper())
         if month:
-            start_dt = datetime(CURRENT_YEAR, month, start_day)
-            end_dt = datetime(CURRENT_YEAR, month, end_day)
-            return start_dt, end_dt
-    elif len(parts) == 5 and parts[2] in ["-", "–"]: # range format: "12 Νοε - 3 Δεκ"
+            year = now.year
+            if month < now.month:
+                year += 1
+            start_dt = datetime(year, month, start_day)
+            end_dt = datetime(year, month, end_day)
+
+    # Special English formats: "12 & 13 September"
+    elif len(parts) == 4 and parts[1] == "&":
+        start_day = int(parts[0])
+        end_day = int(parts[2])
+        month = ENGLISH_MONTHS.get(parts[3].upper())
+        if month:
+            year = now.year
+            if month < now.month:
+                year += 1
+            start_dt = datetime(year, month, start_day)
+            end_dt = datetime(year, month, end_day)
+
+    # Range across months: "12 Νοε - 3 Δεκ"
+    elif len(parts) == 5 and parts[2] in ["-", "–"]:
         start_day = int(parts[0])
         start_month = find_greek_month(parts[1])
         end_day = int(parts[3])
         end_month = find_greek_month(parts[4])
         if start_month and end_month:
-            start_dt = datetime(CURRENT_YEAR,start_month,start_day)
-            end_year = CURRENT_YEAR
-            if end_month<start_month:
-                end_year+=1
-            end_dt = datetime(end_year,end_month,end_day)
-            return start_dt, end_dt
-    return None, None
+            start_year = now.year
+            end_year = now.year
+            if start_month < now.month:
+                start_year += 1
+            if end_month < start_month or (end_month == start_month and end_day < start_day):
+                end_year += 1
+            start_dt = datetime(start_year, start_month, start_day)
+            end_dt = datetime(end_year, end_month, end_day)
+
+    # Fallback
+    return start_dt, end_dt
+
 
 async def crawl_more_com():
     LOGGER.info(f"Crawling more.com")
