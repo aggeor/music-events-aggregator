@@ -6,6 +6,7 @@ from datetime import datetime
 
 from database.db import AsyncSessionLocal, Event as EventDB 
 from fastapi.middleware.cors import CORSMiddleware
+from utils.helper import LOGGER
 
 app = FastAPI()
 
@@ -33,11 +34,16 @@ app.add_middleware(
 async def dynamic_cors(request: Request, call_next):
     response = await call_next(request)
     origin = request.headers.get("origin")
+    LOGGER.info(f"Incoming request Origin: {origin}")
     proto = request.headers.get("x-forwarded-proto", "https")  # Cloudflare proxy
+
+    LOGGER.info(f"proto: {proto}")
     if origin:
         # Check if origin is allowed directly, or rebuild it with proto
         host_only = origin.split("://")[-1]
+        LOGGER.info(f"host_only: {host_only}")
         rebuilt_origin = f"{proto}://{host_only}"
+        LOGGER.info(f"rebuilt_origin: {rebuilt_origin}")
         if origin in ALLOWED_ORIGINS or rebuilt_origin in ALLOWED_ORIGINS:
             response.headers["Access-Control-Allow-Origin"] = origin
     return response
