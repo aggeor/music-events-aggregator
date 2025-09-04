@@ -4,9 +4,8 @@ from sqlalchemy.future import select
 from pydantic import BaseModel
 from datetime import datetime
 
-from database.db import AsyncSessionLocal, Event as EventDB 
+from database.db import AsyncSessionLocal, Event as EventDB
 from fastapi.middleware.cors import CORSMiddleware
-from utils.helper import LOGGER
 
 app = FastAPI()
 
@@ -32,20 +31,32 @@ app.add_middleware(
 # Custom middleware to dynamically set Access-Control-Allow-Origin
 @app.middleware("http")
 async def dynamic_cors(request: Request, call_next):
-    response = await call_next(request)
     origin = request.headers.get("origin")
-    LOGGER.info(f"Incoming request Origin: {origin}")
     proto = request.headers.get("x-forwarded-proto", "https")  # Cloudflare proxy
 
-    LOGGER.info(f"proto: {proto}")
+    print("=== CORS DEBUG ===")
+    print(f"Incoming request URL: {request.url}")
+    print(f"Origin header: {origin}")
+    print(f"x-forwarded-proto: {proto}")
+
+    response = await call_next(request)
+
     if origin:
-        # Check if origin is allowed directly, or rebuild it with proto
         host_only = origin.split("://")[-1]
-        LOGGER.info(f"host_only: {host_only}")
         rebuilt_origin = f"{proto}://{host_only}"
-        LOGGER.info(f"rebuilt_origin: {rebuilt_origin}")
+        print(f"host_only: {host_only}")
+        print(f"rebuilt_origin: {rebuilt_origin}")
+
         if origin in ALLOWED_ORIGINS or rebuilt_origin in ALLOWED_ORIGINS:
             response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Vary"] = "Origin"
+            print(f"✅ CORS allowed for: {origin}")
+        else:
+            print(f"❌ CORS blocked for: {origin}")
+    else:
+        print("⚠️ No Origin header present")
+
+    print("=================")
     return response
 
 # Get DB session
