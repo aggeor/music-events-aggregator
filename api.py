@@ -14,7 +14,9 @@ ALLOWED_ORIGINS = {
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://events.maenox.com",
+    "http://events.maenox.com",
     "https://music-events-frontend-rose.vercel.app"
+    "http://music-events-frontend-rose.vercel.app",
 }
 
 # CORSMiddleware for methods, headers, credentials
