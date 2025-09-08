@@ -1,119 +1,91 @@
-
 import re
+import json
 from datetime import datetime
 from urllib.parse import urljoin
-import json
 
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
 from crawl4ai import JsonCssExtractionStrategy
 
 from utils.helper import LOGGER
 
-BASE_URL="https://iereiestisnychtas.com/musicevents"
-
+BASE_URL = "https://iereiestisnychtas.com/musicevents"
+DOMAIN = "https://iereiestisnychtas.com"
 CURRENT_YEAR = datetime.now().year
 
+
 async def crawl_iereies():
-    LOGGER.info(f"Crawling iereiestisnychtas.com")
-    LOGGER.info(f"URL: "+BASE_URL)
-    # 1. Define a simple extraction schema
+    LOGGER.info("🌐 Crawling iereiestisnychtas.com")
+    LOGGER.debug(f"URL: {BASE_URL}")
+
     schema = {
         "name": "Iereies",
-        "baseSelector": "a.flex-events-a",    # Repeated elements
+        "baseSelector": "a.flex-events-a",
         "fields": [
-            {
-                "name": "title",  # The output key
-                "selector": "div.flex-eventsinfo-h h2",
-                "type": "text"
-            },
-            {
-                "name": "start_date",
-                "selector": "div.flex-eventsinfo-p",
-                "type": "text"
-            },
-            {
-                "name": "end_date",
-                "selector": "div.flex-eventsinfo-p",
-                "type": "text"
-            },
-            {
-                "name": "location",
-                "selector": "div.flex-eventsinfo-more-details",
-                "type": "text"
-            },
-            {
-                "name": "imageUrl",
-                "selector":"div.flex-eventsimg img",
-                "type": "attribute",
-                "attribute": "src"
-            },
-            {
-                "name": "detailsUrl",
-                "selector":"div.btn",
-                "type":"attribute",
-                "attribute": "href"
-            }
-        ]
+            {"name": "title", "selector": "div.flex-eventsinfo-h h2", "type": "text"},
+            {"name": "start_date", "selector": "div.flex-eventsinfo-p", "type": "text"},
+            {"name": "end_date", "selector": "div.flex-eventsinfo-p", "type": "text"},
+            {"name": "location", "selector": "div.flex-eventsinfo-more-details", "type": "text"},
+            {"name": "imageUrl", "selector": "div.flex-eventsimg img", "type": "attribute", "attribute": "src"},
+            {"name": "detailsUrl", "selector": "div.btn", "type": "attribute", "attribute": "href"},
+        ],
     }
 
-    # 2. Create the extraction strategy
     extraction_strategy = JsonCssExtractionStrategy(schema, verbose=True)
-
-    # 3. Set up your crawler config (if needed)
     config = CrawlerRunConfig(
-        # e.g., pass js_code or wait_for if the page is dynamic
-        # wait_for="css:.crypto-row:nth-child(20)"
-        cache_mode = CacheMode.BYPASS,
+        cache_mode=CacheMode.BYPASS,
         extraction_strategy=extraction_strategy,
     )
 
+    events = []
     async with AsyncWebCrawler(verbose=True) as crawler:
-        # 4. Run the crawl and extraction
-        result = await crawler.arun(
-            url=BASE_URL,
-            config=config
-        )
+        result = await crawler.arun(url=BASE_URL, config=config)
 
         if not result.success:
-            print("Crawl failed:", result.error_message)
-            return
+            LOGGER.error(f"❌ Crawl failed for {BASE_URL}: {result.error_message}")
+            return []
 
-        # 5. Parse the extracted JSON
-        data = json.loads(result.extracted_content)
-        for event in data:
-            # Ensure full image URL
+        try:
+            raw_data = json.loads(result.extracted_content)
+        except json.JSONDecodeError as e:
+            LOGGER.error(f"❌ Failed to parse extracted JSON: {e}")
+            return []
+
+        for event in raw_data:
+            # Fix image URLs
             if event.get("imageUrl", "").startswith("/"):
-                event["imageUrl"] = urljoin("https://iereiestisnychtas.com", event["imageUrl"])
+                event["imageUrl"] = urljoin(DOMAIN, event["imageUrl"])
 
             # Extract time from location
-            match = re.match(r"(\d{1,2}:\d{2})(.+)", event["location"])
+            time = None
+            match = re.match(r"(\d{1,2}:\d{2})(.+)", event.get("location", ""))
             if match:
-                time = match.group(1)  # e.g., "17:30"
-                location = match.group(2).strip()
-                event["location"] = location
+                time = match.group(1)
+                event["location"] = match.group(2).strip()
             else:
-                time = event["location"]  # Default fallback time if location not found
-                event["location"] = "" # Add empty location
+                time = event.get("location", "")
+                event["location"] = ""
 
-            # Clean weekday (e.g., "SUN 27/07" → "27/07")
-            date_str = re.sub(r"^\w+\s+", "", event["start_date"]).strip()
+            # Clean weekday from date (e.g. "SUN 27/07" → "27/07")
+            date_str = re.sub(r"^\w+\s+", "", event.get("start_date", "")).strip()
+            datetime_str = f"{date_str} {time} {CURRENT_YEAR}" # e.g., "27/07 17:30 2025"
 
-            # Combine with time
-            datetime_str = f"{date_str} {time} {CURRENT_YEAR}"  # e.g., "27/07 17:30 2025"
-            
             try:
                 parsed_date = datetime.strptime(datetime_str, "%d/%m %H:%M %Y")
                 event["start_date"] = parsed_date
                 event["end_date"] = parsed_date
             except ValueError:
-                print(f"Could not parse date: {datetime_str}")
-                continue  # Skip if invalid
-            # Add detailsUrl
+                LOGGER.warning(f"⚠️ Could not parse date: {datetime_str}")
+                continue
+
+            # Fix details URL
             if event.get("detailsUrl", "").startswith("/"):
-                event["detailsUrl"] = urljoin("https://iereiestisnychtas.com", event["detailsUrl"])
-            
+                event["detailsUrl"] = urljoin(DOMAIN, event["detailsUrl"])
+
+            # Add metadata
             event["sourceName"] = "iereiestisnychtas.com"
             event["sourceUrl"] = BASE_URL
-        
-        LOGGER.info(f"✅ Completed crawling iereiestisnychtas.com")
-        return data
+
+            events.append(event)
+
+    LOGGER.info(f"✅ Completed crawling iereiestisnychtas.com — {len(events)} events found")
+    return events
