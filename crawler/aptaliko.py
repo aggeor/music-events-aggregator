@@ -1,27 +1,33 @@
 import re
+import json
 from datetime import datetime
 from urllib.parse import urljoin
-import json
-from bs4 import BeautifulSoup
 
+from bs4 import BeautifulSoup
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
 from crawl4ai import JsonCssExtractionStrategy
-
-from typing import Optional
 
 from utils.helper import LOGGER
 
 BASE_URL = "https://aptaliko.gr/search?contentType=EVENTS&groupPage=1&eventPage="
+DOMAIN = "https://aptaliko.gr"
+
 
 def parse_event_date(date_str: str) -> dict:
     """
-    Parse a date string from aptaliko.gr and return a dict with 'date' or 'start_date'/'end_date'.
+    Parse a date string from aptaliko.gr and return a dict with 'start_date'/'end_date'.
+    Supports:
+      - ISO format
+      - Date ranges (e.g., "Jun 25, 2025Jun 29, 2025")
+      - Full date + time (e.g., "Jun 24, 2025, 7:30 PM")
+      - Date only (e.g., "Jun 24, 2025")
     """
     date_str = date_str.strip()
-    # Handle ISO format
+
+    # ISO format
     try:
         dt = datetime.fromisoformat(date_str)
-        return {"date": dt}
+        return {"start_date": dt, "end_date": dt}
     except Exception:
         pass
 
@@ -33,34 +39,33 @@ def parse_event_date(date_str: str) -> dict:
             end = datetime.strptime(range_match.group(2), "%b %d, %Y")
             return {"start_date": start, "end_date": end}
         except Exception as e:
-            print(f"Could not parse date range: {date_str} - Error: {e}")
+            LOGGER.warning(f"⚠️ Could not parse date range '{date_str}': {e}")
             return {}
 
-    # Handle "Jun 24, 2025, 7:30 PM"
+    # Date + time: "Jun 24, 2025, 7:30 PM"
     try:
         dt = datetime.strptime(date_str, "%b %d, %Y, %I:%M %p")
-        return {"date": dt}
+        return {"start_date": dt, "end_date": dt}
     except Exception:
         pass
 
-    # Handle "Jun 24, 2025" (no time)
+    # Date only: "Jun 24, 2025" (no time)
     try:
         dt = datetime.strptime(date_str, "%b %d, %Y")
-        return {"date": dt}
+        return {"start_date": dt, "end_date": dt}
     except Exception:
         pass
 
-    print(f"Could not parse date string: {date_str}")
+    LOGGER.warning(f"⚠️ Could not parse date string: '{date_str}'")
     return {}
 
 
 async def crawl_aptaliko():
-    LOGGER.info(f"Crawling aptaliko.gr")
-    LOGGER.info(f"URL: "+BASE_URL)
-    page = 1
-    all_data = []
+    LOGGER.info("🌐 Crawling aptaliko.gr")
 
-    # Schema to extract events data only (no rawHtml here)
+    page = 1
+    all_events = []
+
     schema = {
         "name": "Aptaliko",
         "baseSelector": "a.mbz-card",
@@ -70,7 +75,7 @@ async def crawl_aptaliko():
             {"name": "location", "selector": "div.truncate", "type": "text"},
             {"name": "imageUrl", "selector": "img.transition-opacity", "type": "attribute", "attribute": "src"},
             {"name": "detailsUrl", "type": "attribute", "attribute": "href"},
-        ]
+        ],
     }
 
     extraction_strategy = JsonCssExtractionStrategy(schema, verbose=True)
@@ -84,69 +89,73 @@ async def crawl_aptaliko():
     async with AsyncWebCrawler(verbose=True) as crawler:
         while True:
             url = f"{BASE_URL}{page}"
-            print(f"Fetching page {page}: {url}")
+            LOGGER.debug(f"Fetching page {page}: {url}")
 
             # Fetch event data
             result = await crawler.arun(url=url, config=config)
             if not result.success:
-                print(f"Crawl failed on page {page}: {result.error_message}")
+                LOGGER.error(f"❌ Crawl failed on page {page}: {result.error_message}")
                 break
 
-            page_data = json.loads(result.extracted_content)
+            try:
+                page_data = json.loads(result.extracted_content)
+            except json.JSONDecodeError as e:
+                LOGGER.error(f"❌ Failed to parse JSON on page {page}: {e}")
+                break
+
             if not page_data or len(page_data) == 0:
-                print(f"No more events found on page {page}. Stopping.")
+                LOGGER.info(f"No more events found on page {page}, stopping.")
                 break
 
-            # Fix URLs and parse dates
             for event in page_data:
+                # Fix relative URLs
                 for key in ["imageUrl", "detailsUrl"]:
                     if event.get(key, "").startswith("/"):
-                        event[key] = urljoin("https://aptaliko.gr", event[key])
-                # Parse date(s)
-                parsed = parse_event_date(event["date"])
-                if "date" in parsed:
-                    event["start_date"] = parsed["date"]
-                    event["end_date"] = parsed["date"]
-                elif "start_date" in parsed and "end_date" in parsed:
+                        event[key] = urljoin(DOMAIN, event[key])
+
+                # Parse and normalize dates
+                parsed = parse_event_date(event.get("date", ""))
+                if parsed:
                     event["start_date"] = parsed["start_date"]
                     event["end_date"] = parsed["end_date"]
                 else:
-                    continue
-                # Remove the original 'date' field
+                    continue  # Skip invalid date
                 if "date" in event:
-                    del event["date"]
+                    event.pop("date", None)
                 event["sourceName"] = "aptaliko.gr"
                 event["sourceUrl"] = BASE_URL
 
-            all_data.extend(page_data)
+            all_events.extend(page_data)
 
-            # Fetch raw page HTML separately to check "Next" button status
+            # Check if there's a next page
             html_result = await crawler.arun(
                 url=url,
                 config=CrawlerRunConfig(
                     cache_mode=CacheMode.BYPASS,
-                    extraction_strategy=None,  # No extraction, raw HTML
+                    extraction_strategy=None,
                     wait_for="css:button.o-pag__link.pagination-link.o-pag__next",
-                )
+                ),
             )
+
             if not html_result.success:
-                print(f"Failed to get page HTML on page {page}: {html_result.error_message}")
+                LOGGER.warning(f"⚠️ Failed to fetch pagination info on page {page}: {html_result.error_message}")
                 break
 
             # raw_content is bytes, decode to str
             raw_html = html_result.fit_html
             soup = BeautifulSoup(raw_html, "html.parser")
-
             next_btn = soup.select_one("button.o-pag__link.pagination-link.o-pag__next")
-            if next_btn is None:
-                print("Next button not found, stopping crawl.")
+
+            if not next_btn:
+                LOGGER.info("No 'Next' button found, stopping crawl.")
                 break
 
             classes = next_btn.get("class", [])
             if "o-pag__link--disabled" in classes or "pagination-link-disabled" in classes:
-                print("Next button is disabled, stopping crawl.")
+                LOGGER.info("Next button is disabled, stopping crawl.")
                 break
 
             page += 1
-    LOGGER.info(f"✅ Completed crawling aptaliko.gr")
-    return all_data
+
+    LOGGER.info(f"✅ Completed crawling aptaliko.gr — {len(all_events)} events found")
+    return all_events
