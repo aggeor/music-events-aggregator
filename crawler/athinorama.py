@@ -1,20 +1,19 @@
 import re
+import json
 from datetime import datetime
 from urllib.parse import urljoin
-import json
 
-from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
-from crawl4ai import JsonCssExtractionStrategy
 from bs4 import BeautifulSoup
+from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, JsonCssExtractionStrategy
 
 from utils.helper import LOGGER
 
 CURRENT_YEAR = datetime.now().year
-
 BASE_URL = "https://www.athinorama.gr/music/guide"
 
-# Greek time mapping
-def convert_greek_time_to_24h(time_str):
+
+def convert_greek_time_to_24h(time_str: str) -> str:
+    """Convert Greek AM/PM times into 24h format."""
     match = re.search(r"(\d{1,2})(?:[:\.](\d{2}))?\s*(π\.μ\.|μ\.μ\.)", time_str)
     if not match:
         return "21:00"  # default fallback
@@ -30,9 +29,40 @@ def convert_greek_time_to_24h(time_str):
 
     return f"{hour:02}:{minute:02}"
 
+
+def parse_event_datetime(summary_html: str) -> tuple[datetime | None, datetime | None]:
+    """Extract datetime from Athinorama summary HTML."""
+    soup = BeautifulSoup(summary_html, "html.parser")
+    summary_with_date = soup.find("p", class_="summary", style=lambda s: s and "display:block" in s)
+
+    if not summary_with_date:
+        LOGGER.warning(f"Missing styled summary with date in HTML: {summary_html[:80]}...")
+        return None, None
+
+    strong_tag = summary_with_date.find("strong")
+    date_str = strong_tag.get_text(strip=True) if strong_tag else None
+    text_after_strong = strong_tag.next_sibling if strong_tag else ""
+
+    if not date_str:
+        LOGGER.warning(f"Missing date in summary: {summary_with_date}")
+        return None, None
+
+    time_match = re.search(r"(\d{1,2}(?::\d{2}|.\d{2})?\s*(?:π\.μ\.|μ\.μ\.))", text_after_strong or "")
+    time_str = convert_greek_time_to_24h(time_match.group(1)) if time_match else "21:00"
+
+    datetime_str = f"{date_str} {time_str} {CURRENT_YEAR}"
+    try:
+        dt = datetime.strptime(datetime_str, "%d/%m %H:%M %Y")
+        return dt, dt
+    except ValueError:
+        LOGGER.warning(f"Could not parse datetime: {datetime_str}")
+        return None, None
+
+
 async def crawl_athinorama():
     LOGGER.info(f"Crawling athinorama.gr")
-    LOGGER.info(f"URL: "+BASE_URL)
+    LOGGER.info(f"URL: {BASE_URL}")
+
     schema = {
         "name": "Athinorama",
         "baseSelector": "div.guide-list div.item",
@@ -41,74 +71,44 @@ async def crawl_athinorama():
             {"name": "summary_raw", "selector": "div.item-content", "type": "html"},
             {"name": "location", "selector": "div.item-description h4 a", "type": "text"},
             {"name": "detailsUrl", "selector": "h2.item-title a", "type": "attribute", "attribute": "href"},
-        ]
+        ],
     }
 
     extraction_strategy = JsonCssExtractionStrategy(schema, verbose=True)
-
     config = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
         extraction_strategy=extraction_strategy,
     )
 
     async with AsyncWebCrawler(verbose=True) as crawler:
-        result = await crawler.arun(
-            url=BASE_URL,
-            config=config
-        )
-
+        result = await crawler.arun(url=BASE_URL, config=config)
         if not result.success:
-            print("Crawl failed:", result.error_message)
-            return
+            LOGGER.error(f"Crawl failed: {result.error_message}")
+            return []
 
         data = json.loads(result.extracted_content)
         cleaned_data = []
 
         for event in data:
-            html_summary = event.get("summary_raw", "")
-            location = event.get("location", "").strip()
+            start_date, end_date = parse_event_datetime(event.get("summary_raw", ""))
 
-            soup = BeautifulSoup(html_summary, "html.parser")
-            summary_with_date = soup.find("p", class_="summary", style=lambda s: s and "display:block" in s)
-
-            if not summary_with_date:
-                print(f"Missing styled summary with date in: {html_summary}")
+            if not start_date:
                 continue
 
-            strong_tag = summary_with_date.find("strong")
-            date_str = strong_tag.text.strip() if strong_tag else None
-            text_after_strong = strong_tag.next_sibling if strong_tag else ""
+            details_url = event.get("detailsUrl", "")
+            if details_url.startswith("/"):
+                details_url = urljoin("https://www.athinorama.gr/", details_url)
 
-            if not date_str:
-                print(f"Missing date in: {summary_with_date}")
-                continue
+            cleaned_data.append({
+                "title": event.get("title", "").strip(),
+                "location": event.get("location", "").strip(),
+                "start_date": start_date,
+                "end_date": end_date,
+                "imageUrl": None,  # not provided
+                "detailsUrl": details_url,
+                "sourceName": "athinorama.gr",
+                "sourceUrl": BASE_URL,
+            })
 
-            # Extract time from text after <strong>
-            time_match = re.search(r"(\d{1,2}(?:[:.]\d{2})?\s*(?:π\.μ\.|μ\.μ\.))", text_after_strong or "")
-            time_str = convert_greek_time_to_24h(time_match.group(1)) if time_match else "21:00"
-
-            datetime_str = f"{date_str} {time_str} {CURRENT_YEAR}"
-            try:
-                dt = datetime.strptime(datetime_str, "%d/%m %H:%M %Y")
-                event["start_date"] = dt
-                event["end_date"] = dt
-            except ValueError:
-                print(f"Could not parse datetime: {datetime_str}")
-                continue
-
-            event["location"] = location
-            event["imageUrl"] = None
-
-            if event.get("detailsUrl", "").startswith("/"):
-                event["detailsUrl"] = urljoin("https://www.athinorama.gr/", event["detailsUrl"])
-
-            event["sourceName"] = "athinorama.gr"
-            event["sourceUrl"] = BASE_URL
-
-            # Remove raw HTML content to keep output clean
-            event.pop("summary_raw", None)
-
-            cleaned_data.append(event)
-        
-        LOGGER.info(f"✅ Completed crawling athinorama.gr")
+        LOGGER.info(f"✅ Completed crawling athinorama.gr ({len(cleaned_data)} events)")
         return cleaned_data
