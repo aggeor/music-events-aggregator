@@ -11,6 +11,8 @@ services:
       - "${POSTGRESS_ACCESS_PORT}:${POSTGRESS_LISTEN_PORT}"
     networks:
       - net
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -58,3 +60,4 @@ networks:
 
 volumes:
   pgadmin-data:
+  postgres-data: 
