@@ -6,6 +6,7 @@ from crawler.aptaliko import crawl_aptaliko
 from crawler.clubber import crawl_clubber
 from crawler.more_com import crawl_more_com
 from crawler.ticketmaster import crawl_ticketmaster
+from crawler.ticketservices import crawl_ticketservices
 from database.crud import save_events_to_db
 from utils.helper import print_serialized, LOGGER
 
@@ -17,6 +18,7 @@ CRAWLERS = [
     crawl_clubber,
     crawl_more_com,
     crawl_ticketmaster,
+    crawl_ticketservices
 ]
 
 async def run_crawler(crawler_func):
