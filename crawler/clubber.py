@@ -7,6 +7,7 @@ from utils.helper import LOGGER
 
 BASE_URL = "https://www.clubber.gr/events"
 
+CURRENT_YEAR = datetime.now().year
 
 def parse_event_time(date_str: str, time_str: str) -> datetime | None:
     """Combine date string and time string into a datetime object."""
@@ -14,7 +15,13 @@ def parse_event_time(date_str: str, time_str: str) -> datetime | None:
         return None
     try:
         # Example: 'Thu, 28 August'
-        date_obj = datetime.strptime(date_str, "%a, %d %B").replace(year=datetime.now().year)
+        current_month = datetime.now().month
+        date_obj = datetime.strptime(date_str, "%a, %d %B")
+        if date_obj.month < current_month:
+            date_obj=date_obj.replace(year=CURRENT_YEAR+1)
+        else:
+            date_obj=date_obj.replace(year=CURRENT_YEAR)
+
         hour, minute = map(int, time_str.split(":"))
         return date_obj.replace(hour=hour, minute=minute)
     except (ValueError, AttributeError):
