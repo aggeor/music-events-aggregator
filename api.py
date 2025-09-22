@@ -68,8 +68,8 @@ async def get_db():
 class EventSchema(BaseModel):
     id: int
     title: str
-    start_date: datetime
-    end_date: datetime
+    start_date: datetime | None
+    end_date: datetime | None
     location: str
     imageUrl: str | None
     detailsUrl: str | None
