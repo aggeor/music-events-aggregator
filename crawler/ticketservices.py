@@ -21,7 +21,7 @@ def parse_ticketservices_dates(data_dates: str):
     parsed_dates = []
     for part in date_parts:
         try:
-            parsed_dates.append(datetime.strptime(part.strip(), "%Y-%m-%d"))
+            parsed_dates.append(datetime.strptime(part.strip(), "%Y-%m-%d").replace(hour=21))
         except Exception:
             continue
 
