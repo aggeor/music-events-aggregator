@@ -24,6 +24,9 @@ ENGLISH_MONTHS = {
 MAX_RETRIES = 3
 async def scroll_until_footer(page, pause=0.8):
     footer_selector = "div.footer__copyright"
+
+    footer_exists = await page.query_selector(footer_selector)
+    LOGGER.info(f"Footer exists: {footer_exists is not None}")
     scroll_count = 0
     while True:
         try:
@@ -129,7 +132,9 @@ async def crawl_more_com_once():
             headless=False,
             args=["--disable-http2", "--disable-blink-features=AutomationControlled"]
         )
-        page = await browser.new_page()
+        page = await browser.new_page(
+            viewport={"width": 1280, "height": 2000}
+        )
 
         LOGGER.info(f"Navigating to {BASE_URL}")
         await page.goto(BASE_URL, wait_until="domcontentloaded",timeout=60000)
