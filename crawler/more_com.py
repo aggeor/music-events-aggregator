@@ -116,7 +116,8 @@ def parse_greek_date(date_text: str):
                 end_year += 1
             start_dt = datetime(start_year, start_month, start_day)
             end_dt = datetime(end_year, end_month, end_day)
-
+    start_dt = start_dt.replace(hour=21)
+    end_dt = end_dt.replace(hour=21)
     # Fallback
     return start_dt, end_dt
 
