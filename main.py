@@ -12,13 +12,13 @@ from utils.helper import print_serialized, LOGGER
 
 # Registry of all crawlers
 CRAWLERS = [
-    # crawl_iereies,
-    # crawl_aptaliko,
-    # crawl_athinorama,
-    # crawl_clubber,
+    crawl_iereies,
+    crawl_aptaliko,
+    crawl_athinorama,
+    crawl_clubber,
     crawl_more_com,
-    # crawl_ticketmaster,
-    # crawl_ticketservices
+    crawl_ticketmaster,
+    crawl_ticketservices
 ]
 
 async def run_crawler(crawler_func):
