@@ -1,4 +1,6 @@
 import asyncio
+import sys
+import os
 
 from crawler.athinorama import crawl_athinorama
 from crawler.iereies_tis_nychtas import crawl_iereies
@@ -38,5 +40,19 @@ async def main():
     for crawler in CRAWLERS:
         await run_crawler(crawler)
 
+async def run_with_timeout(timeout_minutes: int = 30):
+    """Run main with a timeout; restart script if timeout is reached."""
+    while True:
+        try:
+            await asyncio.wait_for(main(), timeout=timeout_minutes * 60)
+            break  # finished successfully
+        except asyncio.TimeoutError:
+            LOGGER.warning(f"⚠️ Crawlers took more than {timeout_minutes} minutes. Restarting...")
+            # Option 1: restart program in-place
+            python = sys.executable
+            LOGGER.info("Restarting script from scratch...")
+            # Note: This replaces the current process with a new one
+            os.execv(python, [python] + sys.argv)
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_with_timeout())
