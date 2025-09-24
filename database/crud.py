@@ -11,7 +11,7 @@ async def save_events_to_db(events: list[dict]):
         for e in events:
             # 1️⃣ Prefer matching by detailsUrl if available
             if e.get("detailsUrl"):
-                query = select(Event).where(Event.detailsUrl == e["detailsUrl"])
+                query = select(Event).where(Event.detailsUrl == e["detailsUrl"]).limit(1)
             else:
                 # 2️⃣ Otherwise, try to find event with same title + location
                 query = select(Event).where(
@@ -28,7 +28,7 @@ async def save_events_to_db(events: list[dict]):
                             ),
                         )
                     )
-                )
+                ).limit(1)
 
 
             result = await session.execute(query)
