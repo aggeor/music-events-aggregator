@@ -70,7 +70,7 @@ class EventSchema(BaseModel):
     title: str
     start_date: datetime | None
     end_date: datetime | None
-    location: str
+    location: str | None
     imageUrl: str | None
     detailsUrl: str | None
     sourceName: str
