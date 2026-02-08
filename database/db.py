@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Column, DateTime, Integer, String, Index
 import os
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -15,12 +15,18 @@ class Event(Base):
     end_date = Column(DateTime)
     location = Column(String)
     imageUrl = Column(String)
-    detailsUrl = Column(String)
+    detailsUrl = Column(String, unique=True)  # Prevent duplicate events
     sourceName = Column(String)
     sourceUrl = Column(String)
+    
+    # Add indexes for common queries
+    __table_args__ = (
+        Index('idx_start_date', 'start_date'),
+        Index('idx_source_name', 'sourceName'),
+    )
 
 # Create async engine and session factory
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 # Function to create tables
