@@ -15,7 +15,7 @@ class Event(Base):
     end_date = Column(DateTime)
     location = Column(String)
     imageUrl = Column(String)
-    detailsUrl = Column(String, unique=True)  # Prevent duplicate events
+    detailsUrl = Column(String, unique=True, nullable=True)  # Unique when present, but optional
     sourceName = Column(String)
     sourceUrl = Column(String)
     
